@@ -13,7 +13,10 @@ namespace FileManager;
 public partial class MainWindow : Window
 {
     private string backPath = null!;
+    private string copyPath = null!;
     public ICommand OpenCommand { get; set; }
+    public ICommand CopyCommand { get; set; }
+    public ICommand PasteCommand { get; set; }
     public ICommand ButtonCommand { get; set; }
     public ICommand DeleteCommand { get; set; }
 
@@ -45,13 +48,75 @@ public partial class MainWindow : Window
 
 
         DeleteCommand = new RelayCommand(ExecuteDeleteCommand, CanEcexuteCommand);
+        CopyCommand = new RelayCommand(ExecuteCopyCommand, CanEcexuteCommand);
+        PasteCommand = new RelayCommand(ExecutePasteCommand, CanPasteEcexuteCommand);
         OpenCommand = new RelayCommand(ExecuteOpenCommand, CanEcexuteCommand);
-        ButtonCommand = new RelayCommand(ExecuteButtonCommand,CanExecuteButtonCommand);
+        ButtonCommand = new RelayCommand(ExecuteButtonCommand, CanExecuteButtonCommand);
+    }
+
+    private bool CanPasteEcexuteCommand(object? obj)
+    {
+        if (obj is TreeView t)
+        {
+            if(t.SelectedItem is DirectoryInfo && copyPath != null)
+                return true;
+        }
+        return false;
+    }
+
+    private void ExecutePasteCommand(object? obj)
+    {
+        if (obj is TreeView t)
+        {
+            if (t.SelectedItem is FileInfo)
+                return;
+
+            if (t.SelectedItem is DirectoryInfo d)
+            {
+                if (File.Exists(copyPath))
+                {
+                    var file = new FileInfo(copyPath);
+
+                    if (file is null)
+                        return;
+
+                    try
+                    {
+                        FileCopier(file.Name, file.Directory.FullName, d.FullName);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(ex.Message);
+                    }
+                }
+                else if(Directory.Exists(copyPath))
+                {
+                    var directory  = new DirectoryInfo(copyPath);
+
+                    DirectoryCopier(directory.FullName, d.FullName);
+                }
+                
+            }
+        }
+
+        copyPath = null!;
+    }
+
+    private void ExecuteCopyCommand(object? obj)
+    {
+        if (obj is TreeView t)
+        {
+            if (t.SelectedItem is DirectoryInfo d)
+                copyPath = d.FullName;
+            else if (t.SelectedItem is FileInfo f)
+                copyPath = f.FullName;
+
+        }
     }
 
     private void ExecuteDeleteCommand(object? obj)
     {
-        if(obj is TreeView t)
+        if (obj is TreeView t)
         {
             var item = t.SelectedItem;
             try
@@ -59,7 +124,7 @@ public partial class MainWindow : Window
                 if (item is DirectoryInfo directory)
                     DeleteDirectory(directory);
 
-                if (item is FileInfo file)
+                else if (item is FileInfo file)
                     file.Delete();
 
 
@@ -70,7 +135,6 @@ public partial class MainWindow : Window
             {
                 MessageBox.Show(ex.Message);
             }
-            
 
         }
     }
@@ -86,33 +150,6 @@ public partial class MainWindow : Window
             backPath = directory.Parent?.FullName;
             ManageUpTreeView(directory, t);
         }
-
-
-        //if (obj is TreeView view)
-        //{
-        //    if (view.Items.Count == 0) return;
-
-        //    var item = view.Items[0];
-
-        //    if (item == null) return;
-
-        //    if (item is DirectoryInfo directory)
-        //    {
-
-        //        if (directory.Parent?.Parent is null) return;
-
-        //        ManageUpTreeView(directory.Parent.Parent, view);
-        //    }
-        //    if (item is FileInfo file)
-        //    {
-        //        var directory2 = file.Directory;
-
-        //        if (directory2?.Parent?.Parent is null) return;
-
-        //        ManageUpTreeView(directory2.Parent.Parent, view);
-        //    }
-        //}
-
     }
 
     private void ExecuteOpenCommand(object? parameter)
@@ -148,7 +185,7 @@ public partial class MainWindow : Window
 
         foreach (var d in directory.GetDirectories())
             DeleteDirectory(d);
-         
+
         directory.Delete();
     }
 
@@ -178,13 +215,43 @@ public partial class MainWindow : Window
         }
     }
 
-    public static void OpenWithDefaultProgram(string path)
+    private void OpenWithDefaultProgram(string path)
     {
         using Process fileopener = new Process();
 
         fileopener.StartInfo.FileName = "explorer";
         fileopener.StartInfo.Arguments = "\"" + path + "\"";
         fileopener.Start();
+    }
+
+    private void FileCopier(string fileName, string sourcePath, string targetPath)
+    {
+
+        string sourceFile = Path.Combine(sourcePath, fileName);
+        string destFile = Path.Combine(targetPath, fileName);
+
+        File.Copy(sourceFile, destFile, true);
+    }
+
+    private void DirectoryCopier(string sourcePath,string targetPath)
+    {
+        if (!Directory.Exists(sourcePath))
+            return;
+
+        var directory = new DirectoryInfo(sourcePath);
+        var resultPath = Path.Combine(targetPath, directory.Name);
+
+        Directory.CreateDirectory(resultPath);
+
+        foreach (var f in directory.GetFiles())
+        {
+            FileCopier(f.Name,sourcePath, resultPath);
+        }
+
+        foreach(var d in directory.GetDirectories())
+        {
+            DirectoryCopier(d.FullName, resultPath);
+        }
     }
 }
 
