@@ -14,9 +14,12 @@ public partial class MainWindow : Window
 {
     private string backPath = null!;
     private string copyPath = null!;
+    private string movePath = null!;
     public ICommand OpenCommand { get; set; }
     public ICommand CopyCommand { get; set; }
-    public ICommand PasteCommand { get; set; }
+    public ICommand MoveCommand { get; set; }
+    public ICommand PasteCopyCommand { get; set; }
+    public ICommand PasteMoveCommand { get; set; }
     public ICommand ButtonCommand { get; set; }
     public ICommand DeleteCommand { get; set; }
 
@@ -49,12 +52,75 @@ public partial class MainWindow : Window
 
         DeleteCommand = new RelayCommand(ExecuteDeleteCommand, CanEcexuteCommand);
         CopyCommand = new RelayCommand(ExecuteCopyCommand, CanEcexuteCommand);
-        PasteCommand = new RelayCommand(ExecutePasteCommand, CanPasteEcexuteCommand);
+        PasteCopyCommand = new RelayCommand(ExecutePasteCopyCommand, CanPasteCopyEcexuteCommand);
+        PasteMoveCommand = new RelayCommand(ExecutePasteMoveCommand, CanExecutePasteMoveCommand);
         OpenCommand = new RelayCommand(ExecuteOpenCommand, CanEcexuteCommand);
         ButtonCommand = new RelayCommand(ExecuteButtonCommand, CanExecuteButtonCommand);
+        MoveCommand = new RelayCommand(ExecuteMoveCommand, CanEcexuteCommand);
     }
 
-    private bool CanPasteEcexuteCommand(object? obj)
+    private bool CanExecutePasteMoveCommand(object? obj)
+    {
+        if (obj is TreeView t)
+        {
+            if (t.SelectedItem is DirectoryInfo && movePath != null)
+                return true;
+        }
+        return false;
+    }
+
+    private void ExecutePasteMoveCommand(object? obj)
+    {
+        if (obj is TreeView t)
+        {
+            if (t.SelectedItem is FileInfo)
+                return;
+
+            if (t.SelectedItem is DirectoryInfo d)
+            {
+                if (File.Exists(movePath))
+                {
+                    var file = new FileInfo(movePath);
+
+                    if (file is null)
+                        return;
+
+                    try
+                    {
+                        FileMover(file.Name, file.Directory.FullName, d.FullName);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(ex.Message);
+                    }
+                }
+                else if (Directory.Exists(movePath))
+                {
+                    var directory = new DirectoryInfo(movePath);
+
+                    DirectoryMover(directory.FullName, d.FullName);
+                }
+
+                LeftSideTree.Items.Remove(t.SelectedItem);
+                RigtSideTree.Items.Remove(t.SelectedItem);
+            }
+        }
+        movePath = null!;
+    }
+
+    private void ExecuteMoveCommand(object? obj)
+    {
+        if (obj is TreeView t)
+        {
+            if (t.SelectedItem is DirectoryInfo d)
+                movePath = d.FullName;
+            else if (t.SelectedItem is FileInfo f)
+                movePath = f.FullName;
+
+        }
+    }
+
+    private bool CanPasteCopyEcexuteCommand(object? obj)
     {
         if (obj is TreeView t)
         {
@@ -64,7 +130,7 @@ public partial class MainWindow : Window
         return false;
     }
 
-    private void ExecutePasteCommand(object? obj)
+    private void ExecutePasteCopyCommand(object? obj)
     {
         if (obj is TreeView t)
         {
@@ -222,6 +288,23 @@ public partial class MainWindow : Window
         fileopener.StartInfo.FileName = "explorer";
         fileopener.StartInfo.Arguments = "\"" + path + "\"";
         fileopener.Start();
+    }
+
+    private void FileMover(string fileName,string sourcePath, string targetPath)
+    {
+        var sourceFile = Path.Combine(sourcePath, fileName);
+        var destinyFile = Path.Combine(targetPath, fileName);
+
+        File.Move(sourceFile, destinyFile);
+    }
+
+    private void DirectoryMover(string sourcePath,string targetPath)
+    {
+        var directory = new DirectoryInfo(sourcePath);
+
+        var resultPath = Path.Combine(targetPath, directory.Name);
+
+        Directory.Move(directory.FullName, resultPath);
     }
 
     private void FileCopier(string fileName, string sourcePath, string targetPath)

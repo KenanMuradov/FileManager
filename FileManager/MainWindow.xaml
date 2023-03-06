@@ -34,6 +34,8 @@
                         />
                         <MenuItem 
                         Header="Move"
+                        Command="{Binding MoveCommand}"
+                        CommandParameter="{Binding PlacementTarget, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type ContextMenu}}}"
                         />
                         <MenuItem 
                         Header="Delete"
@@ -61,11 +63,13 @@
                         />
                         <MenuItem 
                         Header="Paste"
-                            Command="{Binding PasteCommand}"
+                        Command="{Binding PasteCopyCommand}"
                         CommandParameter="{Binding PlacementTarget, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type ContextMenu}}}"
                         />
                         <MenuItem 
                         Header="Move"
+                        Command="{Binding PasteMoveCommand}"
+                        CommandParameter="{Binding PlacementTarget, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type ContextMenu}}}"
                         />
                         <MenuItem 
                         Header="Properties"
